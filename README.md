@@ -2,6 +2,8 @@
 
 *dominion-setup-web* sets up a game of Dominion in your browser. It deals a Kingdom from the sets you own, and lists every pile, token and setup step, ready for the table.
 
+**Use it at <https://sgraaf.github.io/dominion-setup-web/>.**
+
 It runs [dominion-setup](https://github.com/sgraaf/dominion-setup), the Python library, in the browser with [Pyodide](https://pyodide.org/). So it is a static site, with no server, and once loaded it works offline and installs on a phone like an app.
 
 ## Features
@@ -59,10 +61,4 @@ uv run prek run --all-files    # linters and formatters
 
 ## Deployment
 
-Every push to `main` is tested and deployed to GitHub Pages by `.github/workflows/deploy.yml`. In the repository's settings, set **Pages → Source** to **GitHub Actions**.
-
-## License
-
-GPL-3.0-only, like dominion-setup.
-
-Dominion is a game by Donald X. Vaccarino, published by Rio Grande Games. This is a fan-made tool, not affiliated with or endorsed by them; the card images are theirs.
+Every push to `main` is tested and deployed to GitHub Pages by `.github/workflows/deploy.yml`.
