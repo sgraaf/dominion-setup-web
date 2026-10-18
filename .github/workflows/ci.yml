@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  # pushes to main run this from deploy.yml
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  NO_COLOR: 1
+  FORCE_COLOR: 0
+  RUFF_OUTPUT_FORMAT: github
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen --dev
+          npm ci
+
+      - name: Run pre-commit hooks
+        run: uv run prek run --all-files --show-diff-on-failure
+
+      - name: Test the bridge
+        run: uv run pytest
+
+      - name: Run unit tests
+        run: npm test
+
+      # the cache keeps the images between runs, so only those of new cards are fetched
+      - name: Restore the card images
+        id: card-images
+        uses: actions/cache@v6
+        with:
+          path: public/cards/
+          # uv.lock pins dominion-setup, and so the cards, and the script says which other images to
+          # fetch (deploy.yml restores this key)
+          key: card-images-${{ hashFiles('uv.lock', 'scripts/fetch_images.py') }}
+          restore-keys: card-images-
+
+      - name: Fetch the card images
+        if: steps.card-images.outputs.cache-hit != 'true'
+        run: |
+          uv run playwright install --with-deps chromium
+          uv run scripts/fetch_images.py
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright's Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+      - name: Upload the Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: test-results/

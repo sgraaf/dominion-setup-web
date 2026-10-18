@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import "@fontsource-variable/figtree";
+
+/* colours as tokens, redefined for dark mode */
+:root {
+  color-scheme: light dark;
+  --bg: #f4f2f8;
+  --surface: #ffffff;
+  --surface-2: #e6e2ee;
+  --surface-3: #ffffff;
+  --track: #e6e2ee;
+  --line: #ece9f2;
+  --edge: #e1dce8;
+  --ink: #1c1a24;
+  --muted: #5f5a6e;
+  --accent: #f0b847;
+  --accent-strong: #e5a72e;
+  --accent-edge: #d69b26;
+  --on-accent: #1e1606;
+  --crown: #d99a1e;
+  --trait: #b9a2d1;
+  --on-trait: #1c1a24;
+  --bar: #ffffff;
+  --danger: #b3261e;
+  --raised: 0 1px 3px rgb(28 26 36 / 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17151f;
+    --surface: #221f2c;
+    --surface-2: #2d2939;
+    --surface-3: #3d3850;
+    --track: #221f2c;
+    --line: #2d2939;
+    --edge: transparent;
+    --ink: #eeebf5;
+    --muted: #a9a3ba;
+    --accent: #f0b847;
+    --accent-strong: #f7cf7a;
+    --accent-edge: transparent;
+    --on-accent: #1e1606;
+    --crown: #f0b847;
+    --bar: #1c1a25;
+    --danger: #f2a08f;
+    --raised: 0 0 #0000;
+  }
+}
+
+@theme inline {
+  --font-sans: "Figtree Variable", system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-track: var(--track);
+  --color-line: var(--line);
+  --color-edge: var(--edge);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-edge: var(--accent-edge);
+  --color-on-accent: var(--on-accent);
+  --color-crown: var(--crown);
+  --color-trait: var(--trait);
+  --color-on-trait: var(--on-trait);
+  --color-bar: var(--bar);
+  --color-danger: var(--danger);
+  --shadow-raised: var(--raised);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+dialog::backdrop {
+  background: rgb(12 10 18 / 0.6);
+  backdrop-filter: blur(2px);
+}
