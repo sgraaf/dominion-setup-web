@@ -1,4 +1,4 @@
-import type { Card, Game, SortOrder } from "./types";
+import type { Card, Catalog, Game, Options, SortOrder } from "./types";
 
 /**
  * The URL of a card's image, made by scripts/fetch_images.py from the wiki's
@@ -70,6 +70,56 @@ export function swapReplacements(cards: Card[], game: Game, card: Card): Card[] 
   return cards.filter(
     (other) => !inGame.has(other.name) && isLandscape(other) === isLandscape(card),
   );
+}
+
+/** The catalog's cards that a game is dealt from: those in its sets and Promos that are not excluded. */
+export function cardPool(
+  catalog: Catalog,
+  { sets, promos, exclude }: Pick<Options, "sets" | "promos" | "exclude">,
+): Card[] {
+  // each set's cards are in both editions (e.g. "Base") or only in this one (e.g. "Base, 2E")
+  const setNames = new Set(
+    catalog.sets
+      .filter((set) => sets.includes(set.key))
+      .flatMap((set) => (set.edition ? [set.name, `${set.name}, ${set.edition}E`] : [set.name])),
+  );
+  return catalog.cards.filter(
+    (card) =>
+      (setNames.has(card.set) || promos.includes(card.name)) && !exclude.includes(card.name),
+  );
+}
+
+/** The *cards* with *query* in their name, whatever the case. */
+export function searchCards<T extends Card>(cards: T[], query: string): T[] {
+  const needle = query.trim().toLowerCase();
+  return cards.filter((card) => card.name.toLowerCase().includes(needle));
+}
+
+/**
+ * Sort *cards* as dominion-setup sorts the Kingdom, with the sets in the order of *setOrder*. But
+ * a cost with a + or * comes after the same cost without, so that `groupKingdom` groups each.
+ */
+export function sortCards<T extends Card>(
+  cards: T[],
+  sortOrder: SortOrder,
+  setOrder: string[],
+): T[] {
+  const cost = ({ cost }: Card) => [
+    cost.coins ?? 0,
+    cost.potion ? 1 : 0,
+    cost.debt ?? 0,
+    cost.extra ?? "",
+  ];
+  const key = (card: Card): (number | string)[] => {
+    if (sortOrder === "name") return [card.name];
+    if (sortOrder === "set") return [setOrder.indexOf(setName(card.set)), ...cost(card), card.name];
+    return [...cost(card), card.name];
+  };
+  return cards.toSorted((a, b) => {
+    const [keyA, keyB] = [key(a), key(b)];
+    const i = keyA.findIndex((part, j) => part !== keyB[j]);
+    return i === -1 ? 0 : keyA[i]! < keyB[i]! ? -1 : 1;
+  });
 }
 
 /** The set's name without the edition, e.g. "Base" for "Base, 2E". */

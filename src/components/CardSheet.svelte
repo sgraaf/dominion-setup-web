@@ -5,6 +5,7 @@
   import CardImage from "./CardImage.svelte";
   import Cost from "./Cost.svelte";
   import Icon from "./Icon.svelte";
+  import SwapPicker from "./SwapPicker.svelte";
 
   let {
     card,
@@ -12,6 +13,7 @@
     excluded = false,
     ontoggleexclude,
     replacements = [],
+    setOrder = [],
     onswap,
   }: {
     card: Card | null;
@@ -21,13 +23,15 @@
     ontoggleexclude?: () => void;
     /** The cards to suggest for a swap. */
     replacements?: Card[];
+    /** The names of the sets, in order, to sort the replacements by set. */
+    setOrder?: string[];
     /** Swap the card for *replacement*, or for a random one if `null`; returns the error, if any. */
     onswap?: (replacement: string | null) => Promise<string | null>;
   } = $props();
 
-  const id = $props.id();
   let dialog: HTMLDialogElement;
-  let query = $state("");
+  // whether the cards to swap for are shown, instead of the card
+  let picking = $state(false);
   let swapping = $state(false);
   let swapError = $state<string | null>(null);
 
@@ -35,7 +39,7 @@
     if (card && !dialog.open) dialog.showModal();
     if (!card && dialog.open) dialog.close();
     if (!card) {
-      query = "";
+      picking = false;
       swapError = null;
     }
   });
@@ -47,11 +51,11 @@
     swapping = false;
   }
 
-  /** Swap for the card typed, as it is named (whatever its case). */
-  function swapForQuery() {
-    const name = query.trim();
-    const card = replacements.find((other) => other.name.toLowerCase() === name.toLowerCase());
-    if (name) swap(card?.name ?? name);
+  /** Show the cards to swap for, or the card again, from the top. */
+  function showPicker(show: boolean) {
+    picking = show;
+    swapError = null;
+    dialog.scrollTop = 0;
   }
 </script>
 
@@ -59,10 +63,25 @@
   bind:this={dialog}
   {onclose}
   onclick={(event) => event.target === dialog && dialog.close()}
-  class="m-auto max-h-[92dvh] w-[min(94vw,46rem)] overflow-y-auto rounded-2xl bg-surface p-0 text-ink shadow-2xl ring-1 ring-edge"
+  class={[
+    "m-auto max-h-[92dvh] w-[min(94vw,46rem)] overflow-y-auto rounded-2xl bg-surface p-0 text-ink shadow-2xl ring-1 ring-edge",
+    // as high as it can be, so that it keeps its size as the search narrows down the cards
+    picking && "h-[92dvh]",
+  ]}
   aria-labelledby="card-sheet-title"
 >
-  {#if card}
+  {#if card && picking}
+    <SwapPicker
+      {card}
+      cards={replacements}
+      {setOrder}
+      error={swapError}
+      disabled={swapping}
+      onpick={swap}
+      onback={() => showPicker(false)}
+      onclose={() => dialog.close()}
+    />
+  {:else if card}
     {@const landscape = isLandscape(card)}
     <div
       class={["grid gap-5 p-5", landscape ? "grid-cols-1" : "sm:grid-cols-[minmax(0,17rem)_1fr]"]}
@@ -133,44 +152,32 @@
         </a>
         {#if onswap}
           <div class="mt-6 flex flex-col gap-2.5">
-            <button
-              type="button"
-              class="inline-flex h-11 items-center gap-2 self-start rounded-xl bg-surface-2 px-4 font-semibold hover:bg-surface-3 disabled:opacity-50"
-              onclick={() => swap(null)}
-              disabled={swapping}
-            >
-              <Icon name="shuffle" class="size-4" />
-              Swap for a random card
-            </button>
-            <form
-              class="flex gap-2"
-              onsubmit={(event) => {
-                event.preventDefault();
-                swapForQuery();
-              }}
-            >
-              <label for="{id}-swap" class="sr-only">Swap for</label>
-              <input
-                id="{id}-swap"
-                list="{id}-replacements"
-                bind:value={query}
-                placeholder="Or swap for…"
-                autocomplete="off"
-                class="h-11 min-w-0 flex-1 rounded-xl bg-track px-3.5 text-ink placeholder:text-muted focus:outline-2 focus:outline-accent"
-              />
-              <datalist id="{id}-replacements">
-                {#each replacements as replacement (replacement.name)}
-                  <option value={replacement.name}>{replacement.set}</option>
-                {/each}
-              </datalist>
+            <!-- as wide as each other, with "or" between them -->
+            <div class="grid gap-1.5 self-start">
               <button
-                type="submit"
-                class="h-11 rounded-xl bg-surface-2 px-4 font-semibold hover:bg-surface-3 disabled:opacity-50"
-                disabled={swapping || !query.trim()}
+                type="button"
+                class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-surface-2 px-4 font-semibold hover:bg-surface-3 disabled:opacity-50"
+                onclick={() => swap(null)}
+                disabled={swapping}
               >
-                Swap
+                <Icon name="shuffle" class="size-4" />
+                Swap for a random card
               </button>
-            </form>
+              <div class="flex items-center gap-3 text-sm text-muted">
+                <span aria-hidden="true" class="h-px flex-1 bg-muted/25"></span>
+                or
+                <span aria-hidden="true" class="h-px flex-1 bg-muted/25"></span>
+              </div>
+              <button
+                type="button"
+                class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-surface-2 px-4 font-semibold hover:bg-surface-3 disabled:opacity-50"
+                onclick={() => showPicker(true)}
+                disabled={swapping}
+              >
+                Swap for a card you pick
+                <Icon name="next" class="size-4" />
+              </button>
+            </div>
             {#if swapError}
               <p class="text-sm text-danger" role="alert">{swapError}</p>
             {/if}

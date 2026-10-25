@@ -27,6 +27,7 @@
     game,
     linkVersion,
     catalog,
+    pool,
     saved,
     onsort,
     onswap,
@@ -42,6 +43,8 @@
     /** The dominion-setup version of the share link this game was opened from, if any. */
     linkVersion: string | null;
     catalog: Catalog | null;
+    /** The cards the game is dealt from, to swap for. */
+    pool: Card[];
     /** Whether the user saved this game. */
     saved: boolean;
     onsort: (sortOrder: SortOrder) => void;
@@ -420,6 +423,7 @@
   onclose={() => (openCard = null)}
   {excluded}
   ontoggleexclude={openCard && selectable.has(openCard.name) ? toggleExclude : undefined}
-  replacements={openCard && catalog ? swapReplacements(catalog.cards, game, openCard) : []}
+  replacements={openCard ? swapReplacements(pool, game, openCard) : []}
+  setOrder={catalog?.sets.map((set) => set.name)}
   onswap={openCard && isSwappable(game, openCard) ? swap : undefined}
 />

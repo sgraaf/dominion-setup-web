@@ -154,8 +154,12 @@ test("swap a card for a random one, or for one you pick, as the CLI does", async
   )!;
   const next = (await cardNames(page, "Kingdom"))[0]!;
   await kingdom.getByRole("button", { name: next, exact: true }).click();
-  await dialog.getByLabel("Swap for").fill(picked);
-  await dialog.getByRole("button", { name: "Swap", exact: true }).click();
+  await dialog.getByRole("button", { name: "Swap for a card you pick" }).click();
+  await dialog.getByRole("searchbox", { name: "Search the cards" }).fill(picked);
+  await page
+    .getByRole("list", { name: "Cards to swap for" })
+    .getByRole("button", { name: picked, exact: true })
+    .click();
   await expect(dialog).toBeHidden();
   const names = [...(await cardNames(page, "Kingdom")), ...(await cardNames(page, "Landscapes"))];
   expect(names).toEqual(cliNames(...args, "--swap", swapped, "--swap", `${next}=${picked}`));
@@ -165,16 +169,72 @@ test("swap a card for a random one, or for one you pick, as the CLI does", async
   await expect(kingdom.getByRole("button", { name: next, exact: true })).toBeVisible();
 });
 
-test("a swap that is not possible shows an error and keeps the game", async ({ page }) => {
+test("pick the card to swap for from the game's sets, searched and sorted", async ({ page }) => {
   await page.goto("/?set=base_2e&seed=42");
+  await expect(kingdomHeading(page)).toBeVisible();
+  await page
+    .getByRole("list", { name: "Kingdom", exact: true })
+    .getByRole("button")
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Swap for a card you pick" }).click();
+  const picks = () => cardNames(page, "Cards to swap for");
+
+  // the Base cards that are not in the game, sorted by cost like the Kingdom
+  await expect
+    .poll(picks)
+    .toEqual([
+      "Moat",
+      "Merchant",
+      "Vassal",
+      "Village",
+      "Workshop",
+      "Militia",
+      "Moneylender",
+      "Remodel",
+      "Bandit",
+      "Council Room",
+      "Festival",
+      "Laboratory",
+      "Library",
+      "Market",
+      "Mine",
+      "Sentry",
+    ]);
+  await dialog.getByRole("group", { name: "Sort the cards by" }).getByText("Name").click();
+  await expect.poll(picks).toHaveLength(16);
+  const byName = await picks();
+  expect(byName).toEqual(byName.toSorted());
+
+  const search = dialog.getByRole("searchbox", { name: "Search the cards" });
+  await search.fill("IL");
+  await expect.poll(picks).toEqual(["Council Room", "Militia", "Village"]);
+  await search.fill("xyz");
+  await expect(dialog).toContainText("No cards match “xyz”.");
+
+  // and back to the card
+  await dialog.getByRole("button", { name: "Back" }).click();
+  await expect(dialog.getByRole("button", { name: "Swap for a random card" })).toBeVisible();
+});
+
+test("a swap that is not possible shows an error and keeps the game", async ({ page }) => {
+  // Menagerie is the Bane, which must cost $2 or $3
+  await page.goto("/?set=cornucopia_guilds_2e&include=Young+Witch&seed=42");
   await expect(kingdomHeading(page)).toBeVisible();
   const kingdom = page.getByRole("list", { name: "Kingdom", exact: true });
   const before = await cardNames(page, "Kingdom");
-  await kingdom.getByRole("button", { name: before[0], exact: true }).click();
+  await kingdom.getByRole("button", { name: "Menagerie", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Swap for").fill(before[1]!);
-  await dialog.getByRole("button", { name: "Swap", exact: true }).click();
-  await expect(dialog.getByRole("alert")).toHaveText(`'${before[1]}' is already in the game`);
+  await dialog.getByRole("button", { name: "Swap for a card you pick" }).click();
+  await dialog.getByRole("searchbox", { name: "Search the cards" }).fill("Baker");
+  await page
+    .getByRole("list", { name: "Cards to swap for" })
+    .getByRole("button", { name: "Baker", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "'Baker' is not eligible for Bane (Kingdom card costing $2-$3)",
+  );
   expect(await cardNames(page, "Kingdom")).toEqual(before);
 });
 

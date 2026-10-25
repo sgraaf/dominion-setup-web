@@ -4,6 +4,7 @@
   import GameView from "./components/GameView.svelte";
   import HomeView from "./components/HomeView.svelte";
   import Icon from "./components/Icon.svelte";
+  import { cardPool } from "./lib/cards";
   import { engine } from "./lib/engine/client";
   import { addRecent, hasGame, removeGame, type RecentGame } from "./lib/recent";
   import { collection, preferences, recentGames, savedGames } from "./lib/settings.svelte";
@@ -223,6 +224,7 @@
         game={view.game}
         linkVersion={view.linkVersion}
         {catalog}
+        pool={catalog ? cardPool(catalog, view.options) : []}
         saved={hasGame(savedGames.value, entry(view.options, view.version, view.game))}
         ontogglesaved={toggleSaved}
         ondealagain={() =>

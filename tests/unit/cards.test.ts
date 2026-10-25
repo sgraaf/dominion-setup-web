@@ -1,17 +1,20 @@
 import { describe, expect, test } from "vitest";
 import {
   cardNames,
+  cardPool,
   groupKingdom,
   isLandscape,
   isSwappable,
   isTraitMark,
   materialUrl,
   mergeZombies,
+  searchCards,
   setIconUrl,
+  sortCards,
   swapReplacements,
   wikiUrl,
 } from "../../src/lib/cards";
-import type { Card, CardCost, Game } from "../../src/lib/types";
+import type { Card, CardCost, Catalog, Game, SortOrder } from "../../src/lib/types";
 
 function card(name: string, cost: CardCost, set: string): Card {
   return {
@@ -189,5 +192,127 @@ describe("swaps", () => {
     const cards = [smithy, market, village, alms, mouse];
     expect(swapReplacements(cards, dealt, smithy)).toEqual([market, village]);
     expect(swapReplacements(cards, dealt, mouse)).toEqual([alms]);
+  });
+});
+
+describe("cardPool", () => {
+  const set = (key: string, name: string, edition: number | null) => ({
+    key,
+    name,
+    edition,
+    kingdom_card_count: 0,
+  });
+  const promo = (name: string) => ({ ...card(name, { coins: 5 }, "Promo"), promo: true });
+  const stash = promo("Stash");
+  const envoy = promo("Envoy");
+  const catalog: Catalog = {
+    version: "1.0.0",
+    sets: [
+      set("base_1e", "Base", 1),
+      set("base_2e", "Base", 2),
+      set("seaside_1e", "Seaside", 1),
+      set("seaside_2e", "Seaside", 2),
+      set("prosperity_1e", "Prosperity", 1),
+      set("prosperity_2e", "Prosperity", 2),
+      set("alchemy", "Alchemy", null),
+      set("promo", "Promo", null),
+    ],
+    cards: [
+      { ...cellar, promo: false },
+      { ...village, promo: false },
+      { ...ambassador, promo: false },
+      { ...mint, promo: false },
+      { ...card("Vineyard", { coins: 0, potion: true }, "Alchemy"), promo: false },
+      stash,
+      envoy,
+    ],
+  };
+  const pool = (sets: string[], promos: string[] = [], exclude: string[] = []) =>
+    cardPool(catalog, { sets, promos, exclude }).map((card) => card.name);
+
+  test("has the cards of the game's sets, in the edition", () => {
+    expect(pool(["base_2e", "seaside_2e", "alchemy"])).toEqual(["Cellar", "Village", "Vineyard"]);
+    expect(pool(["base_1e", "seaside_1e"])).toEqual(["Village", "Ambassador"]);
+  });
+
+  test("has the game's Promos, or all of them with the Promo set", () => {
+    expect(pool(["prosperity_1e"], ["Stash"])).toEqual(["Mint", "Stash"]);
+    expect(pool(["promo"])).toEqual(["Stash", "Envoy"]);
+  });
+
+  test("leaves out the excluded cards", () => {
+    expect(pool(["base_2e"], [], ["Village"])).toEqual(["Cellar"]);
+  });
+});
+
+test("search the cards by any part of their name, whatever the case", () => {
+  const blessedVillage = card("Blessed Village", { coins: 4 }, "Nocturne");
+  const villain = card("Villain", { coins: 5 }, "Renaissance");
+  const cards = [blessedVillage, cellar, village, villain];
+  expect(searchCards(cards, "Vil")).toEqual([blessedVillage, village, villain]);
+  expect(searchCards(cards, " VILLAGE ")).toEqual([blessedVillage, village]);
+  expect(searchCards(cards, "")).toEqual(cards);
+  expect(searchCards(cards, "xyz")).toEqual([]);
+});
+
+describe("sortCards", () => {
+  const setOrder = [
+    "Base",
+    "Base",
+    "Seaside",
+    "Alchemy",
+    "Prosperity",
+    "Cornucopia & Guilds",
+    "Empires",
+  ];
+  const transmute = card("Transmute", { coins: 0, potion: true }, "Alchemy");
+  const engineer = card("Engineer", { debt: 4 }, "Empires");
+  const doctor = card("Doctor", { coins: 3, extra: "+" }, "Cornucopia & Guilds");
+  const cards = [village, mint, transmute, doctor, cellar, grandMarket, ambassador, engineer];
+  const sorted = (sortOrder: SortOrder) =>
+    sortCards(cards, sortOrder, setOrder).map((card) => card.name);
+
+  test("sort by cost: coins, then Potion, then Debt, then + or *, then name", () => {
+    expect(sorted("cost")).toEqual([
+      "Engineer",
+      "Transmute",
+      "Cellar",
+      "Ambassador",
+      "Village",
+      "Doctor",
+      "Mint",
+      "Grand Market",
+    ]);
+  });
+
+  test("sort by name", () => {
+    expect(sorted("name")).toEqual([
+      "Ambassador",
+      "Cellar",
+      "Doctor",
+      "Engineer",
+      "Grand Market",
+      "Mint",
+      "Transmute",
+      "Village",
+    ]);
+  });
+
+  test("sort by set, in the sets' order, then by cost", () => {
+    expect(sorted("set")).toEqual([
+      "Cellar",
+      "Village",
+      "Ambassador",
+      "Transmute",
+      "Mint",
+      "Grand Market",
+      "Doctor",
+      "Engineer",
+    ]);
+  });
+
+  test("leave the cards as they were", () => {
+    sortCards(cards, "name", setOrder);
+    expect(cards[0]).toBe(village);
   });
 });
