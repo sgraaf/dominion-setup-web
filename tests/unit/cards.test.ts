@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   cardNames,
   cardPool,
+  costImages,
   groupKingdom,
   isLandscape,
   isSwappable,
@@ -77,6 +78,16 @@ test.each([
   ["Coffers / Villagers mat", "/cards/materials/Coffers_Villagers_mat.webp"],
 ])("the image of %s is at %s", (material, url) => {
   expect(materialUrl(material)).toBe(url);
+});
+
+test.each<[CardCost, string[]]>([
+  [{ coins: 7, extra: "*" }, ["/cards/costs/Coin7star.webp"]],
+  [{ coins: 3, extra: "+" }, ["/cards/costs/Coin3plus.webp"]],
+  [{ coins: 2, potion: true }, ["/cards/costs/Coin2.webp", "/cards/costs/Potion.webp"]],
+  [{ coins: 4, debt: 3 }, ["/cards/costs/Coin4.webp", "/cards/costs/Debt3.webp"]],
+  [{ debt: 8 }, ["/cards/costs/Debt8.webp"]],
+])("the images of the cost %o are at %j", (cost, urls) => {
+  expect(costImages(cost)).toEqual(urls);
 });
 
 test.each([

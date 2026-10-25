@@ -1,4 +1,4 @@
-import type { Card, Catalog, Game, Options, SortOrder } from "./types";
+import type { Card, CardCost, Catalog, Game, Options, SortOrder } from "./types";
 
 /**
  * The URL of a card's image, made by scripts/fetch_images.py from the wiki's
@@ -29,6 +29,20 @@ export function setIconUrl(set: string): string {
 export function materialUrl(material: string): string {
   const stem = material.replace(/[^A-Za-z0-9-]+/g, "_").replace(/^_+|_+$/g, "");
   return `${import.meta.env.BASE_URL}cards/materials/${stem}.webp`;
+}
+
+/**
+ * The URLs of the images of a cost's coins, Potion and Debt, made by scripts/fetch_images.py
+ * from the wiki's (e.g. $7* → ["cards/costs/Coin7star.webp"]).
+ */
+export function costImages({ coins, potion, debt, extra }: CardCost): string[] {
+  const suffix = extra === "+" ? "plus" : extra === "*" ? "star" : "";
+  const stems = [
+    ...(coins === undefined ? [] : [`Coin${coins}${suffix}`]),
+    ...(potion ? ["Potion"] : []),
+    ...(debt ? [`Debt${debt}`] : []),
+  ];
+  return stems.map((stem) => `${import.meta.env.BASE_URL}cards/costs/${stem}.webp`);
 }
 
 /**

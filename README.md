@@ -41,7 +41,7 @@ uv lock --upgrade-package dominion-setup
 
 ### Card images
 
-The images come from the [Dominion Strategy Wiki](https://wiki.dominionstrategy.com/) and are not in the repository. `scripts/fetch_images.py` fetches them into `public/cards/`: the cards as WebP, 320 and 640 pixels wide, and the sets' icons and the mats and tokens in `icons/` and `materials/`. It skips the images that are already there. The end-to-end tests need them.
+The images come from the [Dominion Strategy Wiki](https://wiki.dominionstrategy.com/) and are not in the repository. `scripts/fetch_images.py` fetches them into `public/cards/`: the cards as WebP, 320 and 640 pixels wide, and the sets' icons, the costs' coins, Potion and Debt, and the mats and tokens in `icons/`, `costs/` and `materials/`. It skips the images that are already there. The end-to-end tests need them.
 
 ```sh
 uv run playwright install chromium   # once

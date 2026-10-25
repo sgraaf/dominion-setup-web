@@ -1,8 +1,8 @@
-"""Fetch the images of the cards, sets, mats and tokens from the Dominion Strategy Wiki.
+"""Fetch the images of the cards, sets, costs, mats and tokens from the Dominion Strategy Wiki.
 
 They go into public/cards/: the card images as WebP, 320 and 640 pixels wide,
-and the set icons (in icons/) and the mats and tokens (in materials/) as WebP
-with their transparency. The wiki uses an anti-bot challenge that requires a
+and the set icons (in icons/), the coins, Potion and Debt of the costs (in
+costs/) and the mats and tokens (in materials/) as WebP with their transparency. The wiki uses an anti-bot challenge that requires a
 real browser engine to solve, so the images are fetched by Chromium once it
 has passed (as in dominion-setup's bin/scrape_cards_list.py). Images that are
 already there are skipped, so run this again when the card data changes.
@@ -21,14 +21,14 @@ from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import quote
 
-from dominion_setup import Material, load_card_database
+from dominion_setup import CardCost, Material, load_card_database
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
 WIKI_INDEX_URL = "https://wiki.dominionstrategy.com/index.php"
 CARDS_DIR = Path(__file__).parent.parent / "public" / "cards"
 WIDTHS = (320, 640)
-# the width of the set icons, mats and tokens, which are shown small
+# the width of the set icons, costs, mats and tokens, which are shown small
 SMALL_WIDTH = 192
 # pause between downloads, to go easy on the wiki
 DELAY = 0.2
@@ -117,8 +117,26 @@ def material_path(material: str) -> Path:
     return CARDS_DIR / "materials" / f"{stem}.webp"
 
 
+def cost_images(cost: CardCost) -> list[str]:
+    """Return the wiki's images of *cost*'s coins, Potion and Debt (e.g. Coin7star.png for $7*)."""
+    images = []
+    if cost.coins is not None:
+        extra = {"+": "plus", "*": "star", None: ""}[cost.extra]
+        images.append(f"Coin{cost.coins}{extra}.png")
+    if cost.potion:
+        images.append("Potion.png")
+    if cost.debt:
+        images.append(f"Debt{cost.debt}.png")
+    return images
+
+
+def cost_path(image: str) -> Path:
+    """Return the path of a cost's *image* in the app (see ``costImages`` in src/lib/cards.ts)."""
+    return CARDS_DIR / "costs" / f"{image.rsplit('.', 1)[0]}.webp"
+
+
 def jobs() -> list[Job]:
-    """Return the images of every card, the icons of their sets, and every mat and token."""
+    """Return the images of every card, the icons of their sets, their costs, and every mat and token."""
     db = load_card_database()
     cards = [
         Job(image, {path(image, width): width for width in WIDTHS})
@@ -128,11 +146,16 @@ def jobs() -> list[Job]:
         icon_path(set_): SET_ICONS[set_.replace(", 2E", "")]
         for set_ in sorted({card.display_set for card in db})
     }
+    costs = sorted({image for card in db for image in cost_images(card.cost)})
     return [
         *cards,
         *(
             Job(file, {icon: SMALL_WIDTH}, transparent=True)
             for icon, file in icons.items()
+        ),
+        *(
+            Job(image, {cost_path(image): SMALL_WIDTH}, transparent=True)
+            for image in costs
         ),
         *(
             Job(file, {material_path(material): SMALL_WIDTH}, transparent=True)

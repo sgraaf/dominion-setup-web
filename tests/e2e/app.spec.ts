@@ -268,6 +268,15 @@ test("cards are shown with their images", async ({ page }) => {
     .toBeGreaterThan(0);
 });
 
+test("costs are shown with the wiki's images", async ({ page }) => {
+  await page.goto("/?set=base_2e&seed=42");
+  // the Kingdom is sorted by cost, with each cost above its cards
+  const coin = page.getByRole("list", { name: "Kingdom" }).getByLabel("Cost $2").locator("img");
+  await expect
+    .poll(() => coin.evaluate((img: HTMLImageElement) => img.naturalWidth))
+    .toBeGreaterThan(0);
+});
+
 test.describe("without the service worker", () => {
   test.use({ serviceWorkers: "block" });
 

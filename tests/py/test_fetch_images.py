@@ -2,7 +2,7 @@
 
 import fetch_images
 import pytest
-from dominion_setup import Material, load_card_database
+from dominion_setup import CardCost, Material, load_card_database
 
 
 def test_every_set_has_an_icon() -> None:
@@ -40,3 +40,18 @@ def test_material_path(material: str, file: str) -> None:
         fetch_images.material_path(material)
         == fetch_images.CARDS_DIR / "materials" / file
     )
+
+
+@pytest.mark.parametrize(
+    ("cost", "files"),
+    [
+        (CardCost(coins=7, extra="*"), ["Coin7star.webp"]),
+        (CardCost(coins=3, extra="+"), ["Coin3plus.webp"]),
+        (CardCost(coins=2, potion=True), ["Coin2.webp", "Potion.webp"]),
+        (CardCost(coins=4, debt=3), ["Coin4.webp", "Debt3.webp"]),
+        (CardCost(debt=8), ["Debt8.webp"]),
+    ],
+)
+def test_cost_paths(cost: CardCost, files: list[str]) -> None:
+    paths = [fetch_images.cost_path(image) for image in fetch_images.cost_images(cost)]
+    assert paths == [fetch_images.CARDS_DIR / "costs" / file for file in files]
