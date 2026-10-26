@@ -82,13 +82,19 @@
     />
   {/if}
   {#if card.marks.length || showSize}
+    <!-- on a larger screen, an upright card's marks are raised to its middle and its size is in its corner -->
     <div
       class={[
-        "pointer-events-none absolute inset-x-1.5 flex items-end justify-between gap-1",
-        landscape ? "bottom-1.5" : "bottom-1.5 md:bottom-1/2",
+        "pointer-events-none absolute inset-x-1.5 bottom-1.5 flex items-end justify-between gap-1",
+        !landscape && "md:contents",
       ]}
     >
-      <span class="flex flex-col items-start gap-1">
+      <span
+        class={[
+          "flex flex-col items-start gap-1",
+          !landscape && "md:absolute md:inset-x-1.5 md:bottom-1/2",
+        ]}
+      >
         {#each card.marks as mark (mark)}
           <span
             class={[
@@ -102,7 +108,10 @@
       </span>
       {#if showSize}
         <span
-          class="rounded-full bg-bar/85 px-2 py-0.5 text-[13px] font-bold text-ink tabular-nums"
+          class={[
+            "rounded-full bg-bar/85 px-2 py-0.5 text-[13px] font-bold text-ink tabular-nums",
+            !landscape && "md:absolute md:right-1.5 md:bottom-1.5",
+          ]}
           title="{card.size} cards in the pile"
         >
           ×{card.size}
