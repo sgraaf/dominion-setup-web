@@ -3,7 +3,7 @@
 import * as Comlink from "comlink";
 import { loadPyodide } from "pyodide";
 import bridgeSource from "../../../py/bridge.py?raw";
-import type { Catalog, GenerateResult, Options } from "../types";
+import type { Catalog, GenerateResult, Options, SetUpOptions } from "../types";
 
 const baseUrl = new URL(import.meta.env.BASE_URL, self.location.origin);
 
@@ -29,8 +29,11 @@ const api = {
   async catalog(): Promise<Catalog> {
     return JSON.parse((await bridge).catalog());
   },
-  async generate(options: Options): Promise<GenerateResult> {
-    return JSON.parse((await bridge).generate(JSON.stringify(options)));
+  async generate(options: Options, seed: number): Promise<GenerateResult> {
+    return JSON.parse((await bridge).generate(JSON.stringify({ ...options, seed })));
+  },
+  async setUp(code: string, options: SetUpOptions): Promise<GenerateResult> {
+    return JSON.parse((await bridge).set_up(code, JSON.stringify(options)));
   },
 };
 

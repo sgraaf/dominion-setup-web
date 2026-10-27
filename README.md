@@ -12,7 +12,7 @@ It runs [dominion-setup](https://github.com/sgraaf/dominion-setup), the Python l
 - **A whole setup**: the Kingdom, Landscapes, Ally, Prophecy, extra piles, Black Market deck and basic Supply, with pile sizes for 2 to 6 players.
 - **A checklist** of the mats and tokens to get out and the setup steps.
 - **Options**: requirements (+Buys, Trashing, …), cards to always or never deal, Colony and Shelters, and how many Landscapes.
-- **Share links**: a game's options and seed are in its URL, so whoever opens the link gets the same game, as with `dominion-setup generate --seed`.
+- **Board links**: a game's cards are in its URL (e.g. `?players=4&kingdom=bridge,clerk,…&bane=moat`), so whoever opens the link gets the same game, also with a newer card list, and `dominion-setup setup` can read it. A link with gaps is filled up from your collection.
 - **Card images**, each with its set's icon, and pictures of the mats and tokens to get out. Tiles in the colours of the cards' types stand in for missing images.
 
 ## Development
@@ -27,7 +27,7 @@ npm run dev                    # puts the dominion-setup wheel in public/wheels/
 
 ### How it works
 
-- `py/bridge.py` is the Python side: `catalog()` lists the sets and cards, and `generate(options)` deals a game, as JSON. It does what `dominion-setup generate` does, so a seed gives the same game in the app as on the command line.
+- `py/bridge.py` is the Python side: `catalog()` lists the sets and cards, `generate(options)` deals a game, and `set_up(code, options)` sets up the game of a link, as JSON. They do what `dominion-setup generate` and `dominion-setup setup` do, so a link gives the same game in the app as on the command line.
 - `src/lib/engine/worker.ts` starts Pyodide in a web worker, unpacks the dominion-setup wheel into it, and imports the bridge. The page talks to it with [Comlink](https://github.com/GoogleChromeLabs/comlink).
 - The rest of `src/` is a [Svelte](https://svelte.dev/) app, styled with [Tailwind CSS](https://tailwindcss.com/).
 

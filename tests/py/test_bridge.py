@@ -1,4 +1,4 @@
-"""Tests for ``bridge``: the app gets the same games as ``dominion-setup generate``."""
+"""Tests for ``bridge``: the app gets the same games as ``dominion-setup generate`` and ``setup``."""
 
 import json
 from pathlib import Path
@@ -22,9 +22,24 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "exclude": [],
     "black_market_size": 15,
     "sort_order": "cost",
-    "swaps": [],
     "seed": 42,
 }
+
+SET_UP_OPTIONS: dict[str, Any] = {
+    "sets": ["base_2e"],
+    "promos": [],
+    "exclude": [],
+    "players": None,
+    "sort_order": "cost",
+    "swaps": [],
+}
+
+# Board codes, as dominion-setup writes them
+BASE = "kingdom=artisan,bureaucrat,cellar,chapel,gardens,harbinger,poacher,smithy,throne-room,witch"
+YOUNG_WITCH = (
+    "kingdom=advisor,butcher,candlestick-maker,carnival,farrier,ferryman,plaza,soothsayer,"
+    "stonemason,young-witch&bane=menagerie&ferryman=farmhands"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -73,22 +88,6 @@ def no_config_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             },
             ["--include", "Black Market", "--black-market-size", "5", "--players", "6"],
         ),
-        (
-            {
-                "swaps": [["Smithy", None], ["Moat", "Village"]],
-                "include": ["Smithy", "Moat"],
-            },
-            [
-                "--include",
-                "Smithy",
-                "--include",
-                "Moat",
-                "--swap",
-                "Smithy",
-                "--swap",
-                "Moat=Village",
-            ],
-        ),
     ],
 )
 def test_generate_matches_the_cli(options: dict[str, Any], args: list[str]) -> None:
@@ -100,7 +99,6 @@ def test_generate_matches_the_cli(options: dict[str, Any], args: list[str]) -> N
     cli_result = CliRunner().invoke(cli, [*cli_args, *sets, *args])
     assert cli_result.exit_code == 0, cli_result.output
 
-    assert result["version"] == bridge.VERSION
     assert {"seed": options["seed"], **result["game"]} == json.loads(cli_result.output)
 
 
@@ -118,9 +116,101 @@ def test_generate_returns_an_error_for_a_promo_that_is_not_one() -> None:
     }
 
 
-def test_generate_returns_an_error_for_a_swap_that_is_not_possible() -> None:
-    options = DEFAULT_OPTIONS | {"swaps": [["Platinum", None]]}
-    assert json.loads(bridge.generate(json.dumps(options))) == {
+def without_the_order_of_the_boons(game: dict[str, Any]) -> dict[str, Any]:
+    """Return the *game*, with the Druid's Boons sorted by name.
+
+    A game set up from its code lists them in the order of the code, but
+    ``generate_game`` deals them in random order.
+    """
+    boons = sorted(game["druid_boons"], key=lambda card: card["name"])
+    return game | {"druid_boons": boons}
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {},
+        {
+            "sets": ["base_2e", "nocturne", "cornucopia_guilds_2e", "allies"],
+            "include": ["Black Market", "Druid", "Young Witch"],
+            "players": 4,
+            "max_landscapes": 4,
+        },
+        {
+            "sets": ["prosperity_2e", "dark_ages", "menagerie", "plunder"],
+            "include": ["Way of the Mouse", "Obelisk", "Cheap"],
+            "max_landscapes": 3,
+            "use_colony": True,
+            "use_shelters": True,
+        },
+    ],
+)
+def test_the_code_of_a_game_sets_it_up_again(options: dict[str, Any]) -> None:
+    game = json.loads(bridge.generate(json.dumps(DEFAULT_OPTIONS | options)))["game"]
+    # nothing is drawn, so the sets do not matter
+    set_up_options = SET_UP_OPTIONS | {"sets": []}
+    result = json.loads(bridge.set_up(game["code"], json.dumps(set_up_options)))
+    assert without_the_order_of_the_boons(
+        result["game"]
+    ) == without_the_order_of_the_boons(game)
+
+
+@pytest.mark.parametrize(
+    ("code", "options", "args"),
+    [
+        (BASE, {}, []),
+        (BASE, {"sort_order": "name"}, ["--sort", "name"]),
+        (BASE, {"players": 4}, ["--players", "4"]),
+        # the code's number of players comes first
+        (f"players=3&{BASE}", {"players": 5}, []),
+        (
+            YOUNG_WITCH,
+            {"swaps": [["Menagerie", "Village"]]},
+            ["--swap", "Menagerie=Village"],
+        ),
+    ],
+)
+def test_set_up_matches_the_cli(
+    code: str, options: dict[str, Any], args: list[str]
+) -> None:
+    options = SET_UP_OPTIONS | options
+    result = json.loads(bridge.set_up(code, json.dumps(options)))
+
+    sets = [f"--set={key}" for key in options["sets"]]
+    cli_result = CliRunner().invoke(
+        cli, ["setup", code, "--format", "json", *sets, *args]
+    )
+    assert cli_result.exit_code == 0, cli_result.output
+
+    assert result["game"] == json.loads(cli_result.output)
+
+
+def test_set_up_fills_the_gaps_from_the_collection() -> None:
+    options = SET_UP_OPTIONS | {"sets": ["cornucopia_guilds_2e"]}
+    game = json.loads(bridge.set_up("kingdom=young-witch,baker", json.dumps(options)))[
+        "game"
+    ]
+    names = [card["name"] for card in game["kingdom"]]
+    assert {"Young Witch", "Baker"} <= set(names)
+    assert len(names) == 11  # with the Bane
+    assert "&bane=" in game["code"]
+
+
+def test_set_up_drops_choices_that_no_longer_apply() -> None:
+    # a Bane without Young Witch
+    result = json.loads(bridge.set_up(f"{BASE}&bane=moat", json.dumps(SET_UP_OPTIONS)))
+    assert result["game"]["code"] == BASE
+
+
+def test_set_up_returns_an_error_for_an_unknown_card() -> None:
+    assert json.loads(bridge.set_up("kingdom=nope", json.dumps(SET_UP_OPTIONS))) == {
+        "error": "Card 'nope' not found",
+    }
+
+
+def test_set_up_returns_an_error_for_a_swap_that_is_not_possible() -> None:
+    options = SET_UP_OPTIONS | {"swaps": [["Platinum", None]]}
+    assert json.loads(bridge.set_up(BASE, json.dumps(options))) == {
         "error": "'Platinum' is not a Kingdom card or Landscape",
     }
 

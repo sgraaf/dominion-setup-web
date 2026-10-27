@@ -7,7 +7,7 @@ license = "GPL-3.0-only"
 requires-python = ">=3.11, <4"
 # The app runs the wheel of the version in uv.lock (see scripts/sync_wheel.py).
 dependencies = [
-    "dominion-setup>=2026.4.0",
+    "dominion-setup>=2026.5.0",
 ]
 
 [dependency-groups]

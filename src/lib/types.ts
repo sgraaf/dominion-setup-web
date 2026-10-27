@@ -31,6 +31,8 @@ export interface SetupInstruction {
 }
 
 export interface Game {
+  /** The Board code: the query string of the game's link, which sets it up again. */
+  code: string;
   players: number | null;
   sets: string[];
   kingdom: Card[];
@@ -93,13 +95,19 @@ export interface Options {
   exclude: string[];
   black_market_size: number;
   sort_order: SortOrder;
-  /** `(card, replacement)` pairs, in order; a `null` replacement is drawn at random. */
-  swaps: [string, string | null][];
-  seed: number;
 }
 
-/** The options the user last chose, other than the collection, the swaps and the seed. */
-export type Preferences = Omit<Options, "sets" | "promos" | "swaps" | "seed">;
+/** The options of `dominion-setup setup`, for what a Board code leaves out, and its swaps. */
+export interface SetUpOptions extends Pick<
+  Options,
+  "sets" | "promos" | "exclude" | "players" | "sort_order"
+> {
+  /** `(card, replacement)` pairs, in order; a `null` replacement is drawn at random. */
+  swaps: [string, string | null][];
+}
+
+/** The options the user last chose, other than the collection. */
+export type Preferences = Omit<Options, "sets" | "promos">;
 
 export const DEFAULT_PREFERENCES: Preferences = {
   players: null,
@@ -113,4 +121,4 @@ export const DEFAULT_PREFERENCES: Preferences = {
   sort_order: "cost",
 };
 
-export type GenerateResult = { version: string; game: Game } | { error: string };
+export type GenerateResult = { game: Game } | { error: string };

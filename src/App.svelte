@@ -8,12 +8,14 @@
   import { engine } from "./lib/engine/client";
   import { addRecent, hasGame, removeGame, type RecentGame } from "./lib/recent";
   import { collection, preferences, recentGames, savedGames } from "./lib/settings.svelte";
-  import { fromSearchParams, toSearchParams } from "./lib/share";
+  import { isBoardLink } from "./lib/share";
   import {
     DEFAULT_PREFERENCES,
     type Catalog,
     type Game,
+    type GenerateResult,
     type Options,
+    type SetUpOptions,
     type SortOrder,
   } from "./lib/types";
 
@@ -23,10 +25,10 @@
     | { name: "dealing" }
     | {
         name: "game";
-        options: Options;
-        version: string;
         game: Game;
-        linkVersion: string | null;
+        sortOrder: SortOrder;
+        /** The cards swapped out (not in the link), so a random swap doesn't bring one back. */
+        swapped: string[];
       };
 
   let catalog = $state.raw<Catalog | null>(null);
@@ -45,6 +47,16 @@
 
   const newSeed = () => Math.floor(Math.random() * 1_000_000);
 
+  // the cards of the user's collection, to swap for
+  const pool = $derived(
+    catalog
+      ? cardPool(catalog, {
+          ...(collection.value ?? { sets: [], promos: [] }),
+          exclude: preferences.value.exclude,
+        })
+      : [],
+  );
+
   /** The options for a new game from the user's collection and preferences. */
   function newOptions(): Options {
     // snapshots, as the worker cannot receive state proxies
@@ -55,86 +67,104 @@
       black_market_size: prefs.black_market_size || DEFAULT_PREFERENCES.black_market_size,
       sets,
       promos,
-      swaps: [],
-      seed: newSeed(),
     };
   }
 
+  /**
+   * The options to set up a Board with *swaps*, from the user's collection and preferences, without
+   * drawing the *swapped* cards.
+   */
+  function setUpOptions(swapped: string[] = [], swaps: SetUpOptions["swaps"] = []): SetUpOptions {
+    const { sets, promos, exclude, players, sort_order } = newOptions();
+    return { sets, promos, players, sort_order, exclude: [...exclude, ...swapped], swaps };
+  }
+
   /** The game, to keep in the recent or saved games. */
-  function entry(options: Options, version: string, game: Game): RecentGame {
+  function entry(game: Game): RecentGame {
     const kingdom = game.kingdom.map((card) => card.name);
-    return { options, version, dealtAt: Date.now(), kingdom };
+    return { code: game.code, dealtAt: Date.now(), kingdom };
   }
 
   /** Put the game first in the recent games. */
-  function remember(options: Options, version: string, game: Game) {
-    recentGames.value = addRecent(recentGames.value, entry(options, version, game));
+  function remember(game: Game) {
+    recentGames.value = addRecent(recentGames.value, entry(game));
   }
 
   /** Save the game in view, or remove it from the saved games. */
   function toggleSaved() {
     if (view.name !== "game") return;
-    const game = entry(view.options, view.version, view.game);
-    savedGames.value = hasGame(savedGames.value, game)
-      ? removeGame(savedGames.value, game)
-      : [game, ...savedGames.value];
+    const { code } = view.game;
+    savedGames.value = hasGame(savedGames.value, code)
+      ? removeGame(savedGames.value, code)
+      : [entry(view.game), ...savedGames.value];
   }
 
-  /** Deal a game, and put its options in the URL (as a new history entry if *push*). */
-  async function deal(options: Options, linkVersion: string | null, push: boolean) {
+  /** Show the *dealt* game, with its Board code in the URL (a new history entry if *push*). */
+  async function show(dealt: Promise<GenerateResult>, push: boolean) {
     error = null;
     view = { name: "dealing" };
     // an unexpected error in Python, shown like any other, so that the app does not hang
-    const result = await engine.generate(options).catch((exc) => ({ error: String(exc) }));
+    const result = await dealt.catch((exc) => ({ error: String(exc) }));
     if ("error" in result) {
       error = result.error;
       view = { name: "home" };
       history.replaceState(null, "", location.pathname);
       return;
     }
-    const url = `?${toSearchParams(options, result.version)}`;
+    const url = `?${result.game.code}`;
     if (push) history.pushState(null, "", url);
     else history.replaceState(null, "", url);
-    view = { name: "game", options, ...result, linkVersion };
-    remember(options, result.version, result.game);
+    view = {
+      name: "game",
+      game: result.game,
+      sortOrder: preferences.value.sort_order,
+      swapped: [],
+    };
+    remember(result.game);
     scrollTo({ top: 0 });
   }
 
-  /** Sort the game in view by *sortOrder*: deal it again, as the sort order changes only the order. */
+  /** Deal a new game from the user's collection and preferences. */
+  const deal = () => show(engine.generate(newOptions(), newSeed()), true);
+
+  /** Sort the game in view by *sortOrder*: set it up again, as its Board has no sort order. */
   async function sort(sortOrder: SortOrder) {
     if (view.name !== "game") return;
     preferences.value.sort_order = sortOrder;
     const dealt = view;
-    const options = { ...dealt.options, sort_order: sortOrder };
-    const result = await engine.generate(options);
-    // the same game dealt before, unless the user has moved on since
+    const result = await engine.setUp(dealt.game.code, setUpOptions());
+    // the same game set up before, unless the user has moved on since
     if ("error" in result || view !== dealt) return;
-    history.replaceState(null, "", `?${toSearchParams(options, result.version)}`);
-    view = { ...dealt, options, ...result };
-    remember(options, result.version, result.game);
+    view = { ...dealt, game: result.game, sortOrder };
   }
 
   /** Swap *card* of the game in view for *replacement* (or a random card), as a new history entry. */
   async function swap(card: string, replacement: string | null): Promise<string | null> {
     if (view.name !== "game") return null;
     const dealt = view;
-    const swaps: Options["swaps"] = [...dealt.options.swaps, [card, replacement]];
-    const options = { ...dealt.options, swaps };
-    const result = await engine.generate(options);
+    // a card swapped out before can be picked again
+    const swapped = dealt.swapped.filter((name) => name !== replacement);
+    const result = await engine.setUp(
+      dealt.game.code,
+      setUpOptions(swapped, [[card, replacement]]),
+    );
     if ("error" in result) return result.error;
     // unless the user has moved on since
     if (view !== dealt) return null;
-    history.pushState(null, "", `?${toSearchParams(options, result.version)}`);
-    view = { ...dealt, options, ...result };
-    remember(options, result.version, result.game);
+    history.pushState(null, "", `?${result.game.code}`);
+    view = { ...dealt, game: result.game, swapped: [...swapped, card] };
+    remember(result.game);
     return null;
   }
 
-  /** Show the game in the URL, if any, or else the home (or collection) screen. */
+  /** Set up the game of a Board link in the URL, or else show the home (or collection) screen. */
   function route() {
-    const shared = fromSearchParams(new URLSearchParams(location.search));
-    if (shared) deal(shared.options, shared.version, false);
-    else view = { name: collection.value ? "home" : "collection" };
+    if (isBoardLink(new URLSearchParams(location.search))) {
+      // the link may have gaps, so the URL is replaced with the complete link
+      show(engine.setUp(location.search, setUpOptions()), false);
+    } else {
+      view = { name: collection.value ? "home" : "collection" };
+    }
   }
 
   function goHome() {
@@ -205,30 +235,27 @@
       <HomeView
         {catalog}
         {error}
-        ondeal={() => deal(newOptions(), null, true)}
+        ondeal={deal}
         oneditcollection={() => (view = { name: "collection" })}
         recentGames={recentGames.value}
         savedGames={savedGames.value}
-        onremove={(saved: RecentGame) => (savedGames.value = removeGame(savedGames.value, saved))}
-        onopen={(recent: RecentGame) => deal($state.snapshot(recent.options), recent.version, true)}
+        onremove={(saved: RecentGame) =>
+          (savedGames.value = removeGame(savedGames.value, saved.code))}
+        onopen={(recent: RecentGame) => show(engine.setUp(recent.code, setUpOptions()), true)}
       />
     {:else if view.name === "dealing"}
       {@render loading()}
     {:else}
       <GameView
-        seed={view.options.seed}
-        sortOrder={view.options.sort_order}
+        sortOrder={view.sortOrder}
         onsort={sort}
         onswap={swap}
-        version={view.version}
         game={view.game}
-        linkVersion={view.linkVersion}
         {catalog}
-        pool={catalog ? cardPool(catalog, view.options) : []}
-        saved={hasGame(savedGames.value, entry(view.options, view.version, view.game))}
+        {pool}
+        saved={hasGame(savedGames.value, view.game.code)}
         ontogglesaved={toggleSaved}
-        ondealagain={() =>
-          view.name === "game" && deal({ ...view.options, swaps: [], seed: newSeed() }, null, true)}
+        ondealagain={deal}
         onback={goHome}
       />
     {/if}
@@ -237,8 +264,7 @@
   <!-- clear of the bars at the bottom of a phone's screen -->
   <footer class="border-t border-line max-md:pb-28">
     <p class="mx-auto max-w-7xl px-4 py-6 text-xs leading-relaxed text-muted md:px-6">
-      Dominion and its card images are © Rio Grande Games and Donald X. Vaccarino. Card data and
-      images from the
+      Dominion and all its expansions are © Rio Grande Games. Card data and images from the
       <a class="underline" href="https://wiki.dominionstrategy.com/">Dominion Strategy Wiki</a>.
       Setups by
       <a class="underline" href="https://github.com/sgraaf/dominion-setup">dominion-setup</a

@@ -21,11 +21,8 @@
   import Segmented from "./Segmented.svelte";
 
   let {
-    seed,
     sortOrder,
-    version,
     game,
-    linkVersion,
     catalog,
     pool,
     saved,
@@ -35,15 +32,11 @@
     ondealagain,
     onback,
   }: {
-    seed: number;
     /** How the Kingdom is sorted, and so grouped. */
     sortOrder: SortOrder;
-    version: string;
     game: Game;
-    /** The dominion-setup version of the share link this game was opened from, if any. */
-    linkVersion: string | null;
     catalog: Catalog | null;
-    /** The cards the game is dealt from, to swap for. */
+    /** The cards of the user's collection, to swap for. */
     pool: Card[];
     /** Whether the user saved this game. */
     saved: boolean;
@@ -217,16 +210,9 @@
 <header class="mt-1">
   <h2 class="text-[28px] leading-tight font-extrabold md:text-[34px]">Your Kingdom</h2>
   <p class="mt-1.5 text-[15px] leading-relaxed text-muted">
-    Seed {seed}{game.players ? `, for ${game.players} players` : ""}. {game.sets.join(", ")}.
+    {game.players ? `For ${game.players} players. ` : ""}{game.sets.join(", ")}.
   </p>
 </header>
-
-{#if linkVersion && linkVersion !== version}
-  <p class="mt-4 rounded-xl bg-surface-2 px-4 py-3 text-sm" role="status">
-    This link was made with a different card list ({linkVersion}, now {version}), so the Kingdom may
-    differ from the one that was shared.
-  </p>
-{/if}
 
 <!-- buttons to each section, on a phone -->
 <nav

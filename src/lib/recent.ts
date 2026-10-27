@@ -1,12 +1,9 @@
 // The games dealt last, to open again (e.g. after "Deal again" by mistake), and the games saved.
-// They are kept like share links, so a newer card list may deal another game.
-
-import { toSearchParams } from "./share";
-import { DEFAULT_PREFERENCES, type Options } from "./types";
+// They are kept as Board codes, so they stay the same games after a new release.
 
 export interface RecentGame {
-  options: Options;
-  version: string;
+  /** The Board code, which leaves out the sort order. */
+  code: string;
   /** When the game was dealt, in milliseconds since the epoch. */
   dealtAt: number;
   /** The names of the Kingdom's cards, to recognise the game by. */
@@ -15,25 +12,17 @@ export interface RecentGame {
 
 const LIMIT = 20;
 
-/** The game's options and version, other than the sort order. */
-function key(game: RecentGame): string {
-  const options = { ...game.options, sort_order: DEFAULT_PREFERENCES.sort_order };
-  return toSearchParams(options, game.version).toString();
+/** Whether *games* has the game of Board *code*. */
+export function hasGame(games: RecentGame[], code: string): boolean {
+  return games.some((game) => game.code === code);
 }
 
-/** Whether *games* has *game*, whatever its sort order. */
-export function hasGame(games: RecentGame[], game: RecentGame): boolean {
-  const gameKey = key(game);
-  return games.some((other) => key(other) === gameKey);
-}
-
-/** *games* without *game*, whatever its sort order. */
-export function removeGame(games: RecentGame[], game: RecentGame): RecentGame[] {
-  const gameKey = key(game);
-  return games.filter((other) => key(other) !== gameKey);
+/** *games* without the game of Board *code*. */
+export function removeGame(games: RecentGame[], code: string): RecentGame[] {
+  return games.filter((game) => game.code !== code);
 }
 
 /** Put *game* first in *games*, in place of the same game dealt before, and keep the last 20. */
 export function addRecent(games: RecentGame[], game: RecentGame): RecentGame[] {
-  return [game, ...removeGame(games, game)].slice(0, LIMIT);
+  return [game, ...removeGame(games, game.code)].slice(0, LIMIT);
 }

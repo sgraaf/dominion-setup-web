@@ -40,7 +40,15 @@ export const collection = persisted<Collection | null>("collection", null);
 export const preferences = persisted<Preferences>("preferences", DEFAULT_PREFERENCES);
 
 /** The games dealt last, newest first. */
-export const recentGames = persisted<RecentGame[]>("recent-games", []);
+export const recentGames = persisted<RecentGame[]>("recent-boards", []);
 
 /** The games the user saved, newest first. */
-export const savedGames = persisted<RecentGame[]>("saved-games", []);
+export const savedGames = persisted<RecentGame[]>("saved-boards", []);
+
+// the games kept as options and seeds, which a newer card list could deal differently
+try {
+  localStorage.removeItem("recent-games");
+  localStorage.removeItem("saved-games");
+} catch {
+  // storage is unavailable
+}

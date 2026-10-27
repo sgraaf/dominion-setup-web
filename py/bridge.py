@@ -1,8 +1,9 @@
 """The app's Python side: dominion-setup behind a JSON interface, run in Pyodide.
 
-The web worker calls ``catalog()`` once, and then ``generate(options)`` for
-every game. ``generate`` does what ``dominion-setup generate`` does, so a seed
-gives the same game in the app as on the command line.
+The web worker calls ``catalog()`` once, then ``generate(options)`` to deal a
+new game, and ``set_up(code, options)`` to set up the game of a Board code (the
+query string of a link). ``set_up`` does what ``dominion-setup setup`` does, so
+a link gives the same game in the app as on the command line.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from dominion_setup import (
     generate_game,
     is_selectable,
     load_card_database,
+    read_board_code,
 )
 
 if TYPE_CHECKING:
@@ -66,8 +68,8 @@ def generate(options_json: str) -> str:
 
     The options are those of ``dominion-setup generate``, keyed by the
     parameter names of ``generate_game`` (plus ``sets`` and ``seed``). The
-    result is ``{"version", "game"}``, or ``{"error"}`` if the options cannot
-    produce a game.
+    result is ``{"game"}``, whose ``code`` sets the game up again, or
+    ``{"error"}`` if the options cannot produce a game.
     """
     options: dict[str, Any] = json.loads(options_json)
     try:
@@ -83,10 +85,35 @@ def generate(options_json: str) -> str:
             exclude=options["exclude"],
             promos=options["promos"],
             black_market_size=options["black_market_size"],
-            swaps=[(card, replacement) for card, replacement in options["swaps"]],
             players=options["players"],
             rng=random.Random(options["seed"]),  # noqa: S311
         )
     except SetupGenerationError as exc:
         return json.dumps({"error": str(exc)})
-    return json.dumps({"version": VERSION, "game": game.to_dict()})
+    return json.dumps({"game": game.to_dict()})
+
+
+def set_up(code: str, options_json: str) -> str:
+    """Set up the game of a Board *code*, or of a whole link, as JSON.
+
+    The options are those of ``dominion-setup setup``: what the code leaves
+    out is drawn from the ``sets`` and ``promos``, without the ``exclude``d
+    cards, and the code's number of players comes before ``players``. The
+    ``swaps`` swap cards of the Board. The result is like that of ``generate``.
+    """
+    options: dict[str, Any] = json.loads(options_json)
+    try:
+        board, players = read_board_code(DB, code)
+        game = generate_game(
+            DB,
+            sets_editions={SET_EDITION_CHOICES[key] for key in options["sets"]},
+            sort_order=KingdomSortOrder(options["sort_order"]),
+            exclude=options["exclude"],
+            promos=options["promos"],
+            board=board,
+            swaps=[(card, replacement) for card, replacement in options["swaps"]],
+            players=options["players"] if players is None else players,
+        )
+    except SetupGenerationError as exc:
+        return json.dumps({"error": str(exc)})
+    return json.dumps({"game": game.to_dict()})
