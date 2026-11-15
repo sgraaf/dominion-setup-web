@@ -40,6 +40,11 @@ YOUNG_WITCH = (
     "kingdom=advisor,butcher,candlestick-maker,carnival,farrier,ferryman,plaza,soothsayer,"
     "stonemason,young-witch&bane=menagerie&ferryman=farmhands"
 )
+ALLY_AND_PROPHECY = (
+    "kingdom=amulet,buried-treasure,crew,grand-market,noble-brigand,scout,tea-house,underling,"
+    "villain,wheelwright&landscapes=way-of-the-goat,way-of-the-mole"
+    "&ally=order-of-astrologers&prophecy=great-leader"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -168,6 +173,16 @@ def test_the_code_of_a_game_sets_it_up_again(options: dict[str, Any]) -> None:
             {"swaps": [["Menagerie", "Village"]]},
             ["--swap", "Menagerie=Village"],
         ),
+        (
+            ALLY_AND_PROPHECY,
+            {"swaps": [["Order of Astrologers", "Architects' Guild"]]},
+            ["--swap", "Order of Astrologers=Architects' Guild"],
+        ),
+        (
+            ALLY_AND_PROPHECY,
+            {"swaps": [["Great Leader", "Panic"]]},
+            ["--swap", "Great Leader=Panic"],
+        ),
     ],
 )
 def test_set_up_matches_the_cli(
@@ -224,6 +239,13 @@ def test_catalog_has_the_sets_of_the_cli() -> None:
         for key, value in catalog["sets"][1].items()
         if key != "kingdom_card_count"
     } == {"key": "base_2e", "name": "Base", "edition": 2}
+
+
+def test_catalog_has_the_allies_and_prophecies_apart() -> None:
+    catalog = json.loads(bridge.catalog())
+    names = {card["name"] for card in catalog["allies_and_prophecies"]}
+    assert {"Architects' Guild", "Panic"} <= names
+    assert {card["name"] for card in catalog["cards"]}.isdisjoint(names)
 
 
 def test_catalog_has_the_selectable_cards() -> None:

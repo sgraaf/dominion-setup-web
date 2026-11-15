@@ -48,14 +48,18 @@
   const newSeed = () => Math.floor(Math.random() * 1_000_000);
 
   // the cards of the user's collection, to swap for
-  const pool = $derived(
-    catalog
-      ? cardPool(catalog, {
-          ...(collection.value ?? { sets: [], promos: [] }),
-          exclude: preferences.value.exclude,
-        })
-      : [],
-  );
+  const pool = $derived.by(() => {
+    if (!catalog) return [];
+    const owned = {
+      ...(collection.value ?? { sets: [], promos: [] }),
+      exclude: preferences.value.exclude,
+    };
+    // the Allies and Prophecies are only swapped, so they are not in `cardPool(catalog)`
+    return [
+      ...cardPool(catalog, owned),
+      ...cardPool({ sets: catalog.sets, cards: catalog.allies_and_prophecies }, owned),
+    ];
+  });
 
   /** The options for a new game from the user's collection and preferences. */
   function newOptions(): Options {

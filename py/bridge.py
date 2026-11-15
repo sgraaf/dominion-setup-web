@@ -17,6 +17,7 @@ from dominion_setup import (
     CARD_SETS_WITH_SECOND_EDITIONS,
     SET_EDITION_CHOICES,
     CardSet,
+    CardType,
     KingdomRequirement,
     KingdomSortOrder,
     Pile,
@@ -39,6 +40,12 @@ SELECTABLE_CARDS: list[Card] = sorted(
     key=lambda card: card.name,
 )
 
+# The Allies and Prophecies, which are only swapped, not drawn, like the other Landscapes.
+SWAPPABLE_CARDS: list[Card] = sorted(
+    (card for card in DB if {CardType.ALLY, CardType.PROPHECY} & set(card.types)),
+    key=lambda card: card.name,
+)
+
 # Kingdom requirements, keyed by their names in lowercase (e.g. "buys").
 REQUIREMENTS = {
     requirement.name.lower(): requirement for requirement in KingdomRequirement
@@ -46,7 +53,7 @@ REQUIREMENTS = {
 
 
 def catalog() -> str:
-    """Return the version, sets and selectable cards, as JSON, for the app's menus."""
+    """Return the version, sets, selectable cards, Allies and Prophecies, as JSON, for the menus."""
     sets = [
         {
             "key": key,
@@ -60,7 +67,15 @@ def catalog() -> str:
         Pile(card).to_dict() | {"promo": card.set == CardSet.PROMO}
         for card in SELECTABLE_CARDS
     ]
-    return json.dumps({"version": VERSION, "sets": sets, "cards": cards})
+    allies_and_prophecies = [Pile(card).to_dict() for card in SWAPPABLE_CARDS]
+    return json.dumps(
+        {
+            "version": VERSION,
+            "sets": sets,
+            "cards": cards,
+            "allies_and_prophecies": allies_and_prophecies,
+        }
+    )
 
 
 def generate(options_json: str) -> str:

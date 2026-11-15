@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11, <4"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -38,7 +38,7 @@ wheels = [
 
 [[package]]
 name = "dominion-setup"
-version = "2026.5.0"
+version = "2026.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -46,9 +46,9 @@ dependencies = [
     { name = "rich" },
     { name = "rich-click" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/0b/b05cf3053e7c652a35c9362af5537cc61f1cc7a2f140b3a22ff1fc8e8c1d/dominion_setup-2026.5.0.tar.gz", hash = "sha256:a9aba61bfe1a933d6d70e65821bc5f8d1dd1916ec100234f3e08140949e2c137", size = 90811, upload-time = "2026-10-27T20:16:24.467Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/56/947abf7d8be4077d081918da2bc4319fa580c9ed92191d08b1abc0a6e972/dominion_setup-2026.6.0.tar.gz", hash = "sha256:677fc0faefc0298d1c2d7c81b7361defa0a647385ef011e1b65f754429b38de5", size = 91200, upload-time = "2026-11-15T18:43:45.445Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/85/3745e1a739a189951929ce3355c6431f2a7de3785f0893672258b38716ef/dominion_setup-2026.5.0-py3-none-any.whl", hash = "sha256:4e38546b9d14a365b8123345f490428d02f6a74ca636f37eca98da8156a4ac1d", size = 97438, upload-time = "2026-10-27T20:16:23.256Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/8e/4bbed84d4424662f16c3d863f794f78ce2ca299ebd3c468eff20f871b76c/dominion_setup-2026.6.0-py3-none-any.whl", hash = "sha256:4897373757e9807af3662ba5a2aeb6b510594eb0fbcedbb7ddb19be20ee8527f", size = 97829, upload-time = "2026-11-15T18:43:44.084Z" },
 ]
 
 [[package]]

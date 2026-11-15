@@ -177,8 +177,12 @@ describe("swaps", () => {
   const extra = { ...card("Swamp Shacks", { coins: 4 }, "Rising Sun"), marks: ["Ferryman"] };
   const horse = { ...card("Horse", { coins: 3 }, "Menagerie"), purpose: "Non-Supply" };
   const mouse = { ...card("Way of the Mouse", { coins: 0 }, "Menagerie"), purpose: "Landscape" };
-  const prophecy = { ...card("Panic", {}, "Rising Sun"), purpose: "Landscape" };
-  const ally = { ...card("Band of Nomads", {}, "Allies"), purpose: "Ally" };
+  const prophecy = {
+    ...card("Panic", {}, "Rising Sun"),
+    types: ["Prophecy"],
+    purpose: "Landscape",
+  };
+  const ally = { ...card("Band of Nomads", {}, "Allies"), types: ["Ally"], purpose: "Landscape" };
   const market = card("Market", { coins: 5 }, "Base");
   const alms = { ...card("Alms", { coins: 0 }, "Adventures"), purpose: "Landscape" };
   const dealt = game({
@@ -194,9 +198,24 @@ describe("swaps", () => {
     for (const swappable of [smithy, bane, extra, mouse]) {
       expect(isSwappable(dealt, swappable)).toBe(true);
     }
-    for (const other of [horse, prophecy, ally, market]) {
+    for (const other of [horse, market]) {
       expect(isSwappable(dealt, other)).toBe(false);
     }
+  });
+
+  test("swap the Ally and the Prophecy", () => {
+    expect(isSwappable(dealt, ally)).toBe(true);
+    expect(isSwappable(dealt, prophecy)).toBe(true);
+  });
+
+  test("an Ally is swapped for another Ally, a Prophecy for another Prophecy", () => {
+    const guild = { ...ally, name: "Architects' Guild" };
+    const other = { ...prophecy, name: "Approaching Army" };
+    const cards = [smithy, alms, guild, other, ally, prophecy];
+    expect(swapReplacements(cards, dealt, ally)).toEqual([guild]);
+    expect(swapReplacements(cards, dealt, prophecy)).toEqual([other]);
+    expect(swapReplacements(cards, dealt, smithy)).toEqual([]);
+    expect(swapReplacements(cards, dealt, mouse)).toEqual([alms]);
   });
 
   test("a card is swapped for one of its kind that is not in the game", () => {

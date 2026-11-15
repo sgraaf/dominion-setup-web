@@ -64,33 +64,40 @@ export function cardNames(game: Game): string {
   return cards.flatMap((card) => card?.name ?? []).join(", ");
 }
 
-/** Whether *card* can be swapped: a Kingdom card, extra pile (e.g. the Bane) or Landscape of *game*. */
+/** Whether *card* can be swapped: a Kingdom card, extra pile (e.g. the Bane), Landscape, Ally or Prophecy of *game*. */
 export function isSwappable(game: Game, card: Card): boolean {
   const isIn = (cards: Card[]) => cards.some((other) => other.name === card.name);
   return (
     isIn(game.kingdom) ||
     isIn(game.landscapes) ||
+    game.ally?.name === card.name ||
+    game.prophecy?.name === card.name ||
     (isIn(game.non_supply) && card.purpose === "Kingdom Pile")
   );
 }
 
-/** The *cards* that *card* can be swapped for: those of its kind (Kingdom card or Landscape) not in *game*. */
+// what a card is swapped for: another of its kind
+function swapKind(card: Card): string {
+  if (card.types.includes("Ally")) return "Ally";
+  if (card.types.includes("Prophecy")) return "Prophecy";
+  return isLandscape(card) ? "Landscape" : "Kingdom";
+}
+
+/** The *cards* that *card* can be swapped for: those of its kind (Kingdom card, Landscape, Ally or Prophecy) not in *game*. */
 export function swapReplacements(cards: Card[], game: Game, card: Card): Card[] {
   const inGame = new Set(
-    [...game.kingdom, ...game.landscapes, ...game.non_supply, game.prophecy].flatMap(
+    [...game.kingdom, ...game.landscapes, ...game.non_supply, game.ally, game.prophecy].flatMap(
       (other) => other?.name ?? [],
     ),
   );
-  return cards.filter(
-    (other) => !inGame.has(other.name) && isLandscape(other) === isLandscape(card),
-  );
+  return cards.filter((other) => !inGame.has(other.name) && swapKind(other) === swapKind(card));
 }
 
 /** The catalog's cards that a game is dealt from: those in its sets and Promos that are not excluded. */
-export function cardPool(
-  catalog: Catalog,
+export function cardPool<T extends Card>(
+  catalog: { sets: Catalog["sets"]; cards: T[] },
   { sets, promos, exclude }: Pick<Options, "sets" | "promos" | "exclude">,
-): Card[] {
+): T[] {
   // each set's cards are in both editions (e.g. "Base") or only in this one (e.g. "Base, 2E")
   const setNames = new Set(
     catalog.sets

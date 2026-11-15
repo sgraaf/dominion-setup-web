@@ -61,6 +61,8 @@ export interface Catalog {
   sets: SetEdition[];
   /** The Kingdom cards and Landscapes that can be included or excluded. */
   cards: (Card & { promo: boolean })[];
+  /** The Allies and Prophecies, which can only be swapped for each other. */
+  allies_and_prophecies: Card[];
 }
 
 export const REQUIREMENTS = {

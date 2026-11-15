@@ -46,6 +46,8 @@ const BASE =
   "kingdom=artisan,bureaucrat,cellar,chapel,gardens,harbinger,poacher,smithy,throne-room,witch";
 const ADVENTURES =
   "players=3&kingdom=artisan,cellar,coin-of-the-realm,council-room,duplicate,hireling,merchant,raze,transmogrify,witch&landscapes=inheritance,lost-arts";
+const ALLY_AND_PROPHECY =
+  "kingdom=amulet,buried-treasure,crew,grand-market,noble-brigand,scout,tea-house,underling,villain,wheelwright&landscapes=way-of-the-goat,way-of-the-mole&ally=order-of-astrologers&prophecy=great-leader";
 // with Menagerie as the Bane
 const YOUNG_WITCH =
   "kingdom=advisor,butcher,candlestick-maker,carnival,farrier,ferryman,plaza,soothsayer,stonemason,young-witch&bane=menagerie&ferryman=farmhands";
@@ -209,6 +211,42 @@ test("swap a card for a random one, or for one you pick, as the CLI does", async
   // and Back undoes the swap
   await page.goBack();
   await expect(kingdom.getByRole("button", { name: next, exact: true })).toBeVisible();
+});
+
+test("swap the Ally and the Prophecy for ones of their kind, as the CLI does", async ({ page }) => {
+  await ownSets(page, "allies", "rising_sun", "base_2e");
+  await page.goto(`/?${ALLY_AND_PROPHECY}`);
+  await expect(kingdomHeading(page)).toBeVisible();
+  const landscapes = page.getByRole("list", { name: "Landscapes", exact: true });
+  const dialog = page.getByRole("dialog");
+  for (const [swapped, picked] of [
+    ["Order of Astrologers", "Architects' Guild"],
+    ["Great Leader", "Panic"],
+  ] as const) {
+    await landscapes.getByRole("button", { name: swapped, exact: true }).click();
+    await dialog.getByRole("button", { name: "Swap for a card you pick" }).click();
+    // only cards of the same kind
+    const choices = await cardNames(page, "Cards to swap for");
+    expect(choices).toContain(picked);
+    expect(choices).not.toContain("Village");
+    await dialog.getByRole("searchbox", { name: "Search the cards" }).fill(picked);
+    await page
+      .getByRole("list", { name: "Cards to swap for" })
+      .getByRole("button", { name: picked, exact: true })
+      .click();
+    await expect(dialog).toBeHidden();
+    expect(await cardNames(page, "Landscapes")).toContain(picked);
+  }
+  const names = await gameNames(page);
+  expect(names).toEqual(
+    cliNames(
+      ALLY_AND_PROPHECY,
+      "--swap",
+      "Order of Astrologers=Architects' Guild",
+      "--swap",
+      "Great Leader=Panic",
+    ).filter((name) => names.includes(name)),
+  );
 });
 
 test("pick the card to swap for from your collection, searched and sorted", async ({ page }) => {
